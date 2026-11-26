@@ -214,14 +214,14 @@
       if (d.research) {
         const r=d.research, section=sec(root,"目标驱动的研发");
         const names={source:"核实官方普通 agent 与提示来源",control:"普通 agent 整题对照",contrast:"单因素配对对照",matrix:"三维空间配对采集",search:"同预算强基线重放",method:"改进候选方法与消融",synthesis:"评估路线与证据缺口",diagnosis:"故障与部分结果分析",validation:"新场景独立验证",validation_search:"冻结方法外部检验",redesign:"替代研究假设",interaction:"配对交互分析"};
-        const why={source_integrity:"参考解使用特权信息",low_success:"历史普通模型整题成功稀少",independent_control:"检验其他模型或场景是否复现",quality_signal:"质量出现区分且干预触发",space_trigger:"检验信息与执行干预的实际触发",candidate_uncertainty:"结构共享的优势尚不确定",transfer_uncertainty:"跨任务可重复性不足",resource_review:"核对阻塞与剩余证据",normal_quality_uncertain:"普通执行质量仍不确定",observed_unfence:"单段代码围栏",observed_output:"输出达到长度限制",observed_docs:"文档或参数调用错误",observed_auth:"应用鉴权错误",observed_completion:"提交与评分不符",observed_stop:"错误后继续执行",fresh_evidence:"需要未参与开发的独立场景",method_replication:"检验冻结方法的复现性",interaction_precision:"估计三维配对交互"};
+        const why={source_integrity:"参考解使用特权信息",low_success:"历史普通模型整题成功稀少",independent_control:"检验其他模型或场景是否复现",matched_model:"原模型整题全零，已有单因素实测；固定任务与普通协议，更换基础模型",quality_signal:"质量出现区分且干预触发",space_trigger:"检验信息与执行干预的实际触发",candidate_uncertainty:"结构共享的优势尚不确定",transfer_uncertainty:"跨任务可重复性不足",resource_review:"核对阻塞与剩余证据",normal_quality_uncertain:"普通执行质量仍不确定",observed_unfence:"单段代码围栏",observed_output:"输出达到长度限制",observed_docs:"文档或参数调用错误",observed_auth:"应用鉴权错误",observed_completion:"提交与评分不符",observed_stop:"错误后继续执行",fresh_evidence:"需要未参与开发的独立场景",method_replication:"检验冻结方法的复现性",interaction_precision:"估计三维配对交互"};
         const tests={source:"官方提示可依靠公开字段初始化",control:"固定发现任务中至少一题官方通过",contrast:"单一改动使配对整题通过数增加",matrix:"八个配置可评分且两个策略维度均触发",search:"同预算下优于强基线",method:"改进同时优于父方法和强基线",validation:"独立场景支持既有质量和成本结论",validation_search:"冻结策略在新场景维持优势",interaction:"配对交互跨任务一致",synthesis:"证据可区分竞争路线",diagnosis:"能从账本和断点定位阻塞"};
         const conclusions={verified:"实现验收通过",invalid:"实现验证失败",pilot_supported:"本轮探索性结果支持假设",not_supported:"本轮假设未获支持",measured:"实验测量完成",analyzed:"分析已完成",accepted:"验收条件已核实"};
         const goals={normal_control:"普通 agent 对照",usable_agent:"可用的整题成功率",space_validation:"三维交互与触发",method_effect:"方法优势",generalization:"独立泛化"};
         const blocks={budget:"基础模型剩余预算不足",billing:"请求计费待核",execution_failure:"连续执行失败，检查根因",direction_decision:"需要选择新的研究路线",credential:"服务凭据缺失",resource:"执行资源不可用"};
         row(section,"未达到的目标",r.unmet.map(x=>goals[x]).join("、") || "全部已验收");
         row(section,"任务",names[r.task] || words["rd_"+r.phase]);
-        if (r.hypothesis) row(section,"检验条件",r.hypothesis==="contrast" && r.reason==="observed_stop"?"允许错误后继续执行能提高配对整题通过数":tests[r.hypothesis]);
+        if (r.hypothesis) row(section,"检验条件",r.reason==="matched_model"?"只更换基础模型后，同任务整题通过数增加":r.hypothesis==="contrast" && r.reason==="observed_stop"?"允许错误后继续执行能提高配对整题通过数":tests[r.hypothesis]);
         if (r.reason) row(section,"依据",why[r.reason]+(r.trigger===null?"":" · "+r.trigger+" 次"));
         if (r.latest) row(section,"最近产物",names[r.latest]+" · "+conclusions[r.outcome]);
         row(section,"最近模型实验 · 整题成功",r.success+" / "+r.n);
