@@ -232,7 +232,7 @@
         if(r.retry_at) row(section,"最早重试",stamp(r.retry_at));
         if(r.blocker) row(section,"阻塞",blocks[r.blocker]);
         for(const [k,t,live] of [["规划",r.planning_at,r.planning_live],["执行",r.task_at,r.task_live]])
-          row(section,k+"心跳",(stale || (live && old(t))?"过期":live?"活动":"空闲")+" · "+stamp(t));
+          row(section,k+"心跳",(stale?"面板数据过期":live?(old(t)?"过期":"活动"):t && old(t)?"空闲，上次心跳已过期":"空闲")+" · "+stamp(t));
       }
       let g = ui("div", null, root, "grid"),
         c = sec(g, "原实验 V1"),
