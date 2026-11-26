@@ -117,7 +117,10 @@
       device_check: "待真机复核",
       verified: "已验收",
       active: "进行中",
-      pending: "待开始",
+      pending: "待开始", queued: "已排队", started: "已启动", completed: "已完成",
+      backoff: "退避等待", failed: "失败", official_control: "官方参考解对照",
+      pilot: "V2 发现集验证", analysis: "发现集诊断与搜索比较", hold: "审阅要求暂停",
+      control_failed: "参考解对照失败", signal: "缺少模型整题成功样本",
     };
     const milestones = {
       history: "仓库历史已核验",
@@ -195,7 +198,7 @@
           ? "数据过期"
           : (d.execution_status === "running" &&
                 old(d.experiment_heartbeat_at)) ||
-              (d.execution_status === "working" && old(d.worker_heartbeat_at))
+              (d.execution_status === "working" && [d.worker_heartbeat_at,d.followup?.review_heartbeat_at,d.followup?.development_heartbeat_at].every(old))
             ? "心跳过期"
             : words[d.execution_status],
       );
@@ -203,7 +206,7 @@
       row(overview, "下一项", words[d.next_action]);
       for (let b of d.blockers) row(overview, "阻塞", words[b]);
       let g = ui("div", null, root, "grid"),
-        c = sec(g, "轨迹采集"),
+        c = sec(g, "原实验 V1"),
         b = sec(g, "项目累计预算 · USD");
       let count = d.trajectory_counts;
       row(c, "完整轨迹", count.completed + " / " + count.planned);
@@ -211,10 +214,10 @@
       p.max = count.planned;
       p.value = count.completed;
       p.setAttribute("aria-label", "完整轨迹");
-      row(c, "已预留或结算请求", count.calls);
+      row(b, "全项目请求记录", count.calls);
       row(
         c,
-        "实验作业",
+        "项目采集进程",
         stale
           ? "未知"
           : d.experiment_active && !old(d.experiment_heartbeat_at)
@@ -229,7 +232,16 @@
         available_usd: "可用余额",
       }))
         row(b, t, d.budget[k].toFixed(6));
-      let m = sec(root, "发现集效果与干预");
+      if (d.followup) {
+        const f = d.followup, s = sec(root,"审阅与后续研究");
+        row(s,"Codex 审阅",words[f.review_status] + " · " + f.review_attempts + " 次尝试");
+        row(s,words[f.task],words[f.task_status] + " · " + f.task_attempts + " 次尝试");
+        if (f.retry_at) row(s,"最早重试",stamp(f.retry_at));
+        row(s,"官方参考解 · 整题通过",f.reference_success + " / " + f.reference_n);
+        row(s,"V2 独立发现集 · 已评分",f.pilot_n + " / " + f.pilot_planned);
+        row(s,"V2 模型 · 整题通过",f.pilot_success + " / " + f.pilot_n);
+      }
+      let m = sec(root, "V1 发现集效果与干预");
       for (let [k, t] of Object.entries({
         n: "完整样本",
         success_rate: "官方成功率",
@@ -285,17 +297,19 @@
               x.seeds +
               " 个种子",
           );
-      } else ui("p", "暂无经验证的基线排名。", methods);
+      } else ui("p", "V1 全部质量为零时，参考超体积为零，相对 HV regret 无定义。", methods);
       let proof = sec(root, "证据与心跳");
       for (let x of d.recent_events) ui("div", milestones[x], proof);
       for (let [t, at, live] of [
         ["调度器", d.worker_heartbeat_at, d.worker_active],
+        ["审阅进程", d.followup?.review_heartbeat_at, d.followup?.review_active],
+        ["开发进程", d.followup?.development_heartbeat_at, d.followup?.development_active],
         ["实验进程", d.experiment_heartbeat_at, d.experiment_active],
       ])
         row(
           proof,
           t,
-          (at && old(at)
+          (live && at && old(at)
             ? "心跳过期"
             : live
               ? "活动"
