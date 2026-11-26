@@ -229,10 +229,11 @@
       for (let [k, t] of Object.entries({
         authorized_usd: "授权上限",
         confirmed_or_estimated_usd: "按用量估计",
-        unknown_reserved_usd: "未知计费预留",
+        unknown_billing_usd: "历史未知计费预留",
+        pending_usd: "待结算请求预留",
         available_usd: "可用余额",
       }))
-        row(b, t, d.budget[k].toFixed(6));
+        row(b, t, d.budget[k]?.toFixed(6));
       if (d.followup) {
         const f = d.followup, s = sec(root,"审阅与后续研究");
         row(s,"Codex 审阅",words[f.review_status] + " · " + f.review_attempts + " 次尝试");
