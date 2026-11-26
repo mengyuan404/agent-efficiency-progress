@@ -99,7 +99,7 @@
   </main>
   <script>
     const words = {
-      rd_planning:"研究规划进行中",rd_awaiting_plan:"待研究规划",rd_queued:"任务已入队",rd_collection:"模型采集",rd_analysis:"分析研究证据",rd_development:"开发与验证",rd_backoff:"重试退避",rd_waiting:"等待解除阻塞",rd_accepted:"研究目标已验收",rd_execute:"执行已冻结任务",rd_plan:"根据证据重新规划",
+      rd_planning:"Codex 规划中",rd_awaiting_result:"等待实验结果",rd_awaiting_plan:"待研究规划",rd_queued:"任务已入队",rd_collection:"实验执行中",rd_analysis:"分析研究证据",rd_development:"开发中",rd_backoff:"等待退避",rd_waiting:"等待解除阻塞",rd_accepted:"研究目标已验收",rd_execute:"执行已冻结任务",rd_plan:"根据证据重新规划",
 
       prepare: "核对执行状态",
       environment: "验证 AppWorld 环境",
@@ -218,9 +218,19 @@
         const tests={source:"官方提示可依靠公开字段初始化",control:"固定发现任务中至少一题官方通过",contrast:"单一改动使配对整题通过数增加",matrix:"八个配置可评分且两个策略维度均触发",search:"同预算下优于强基线",method:"改进同时优于父方法和强基线",validation:"独立场景支持既有质量和成本结论",validation_search:"冻结策略在新场景维持优势",interaction:"配对交互跨任务一致",synthesis:"证据可区分竞争路线",diagnosis:"能从账本和断点定位阻塞"};
         const conclusions={verified:"实现验收通过",invalid:"实现验证失败",pilot_supported:"本轮探索性结果支持假设",not_supported:"本轮假设未获支持",measured:"实验测量完成",analyzed:"分析已完成",accepted:"验收条件已核实"};
         const goals={normal_control:"普通 agent 对照",usable_agent:"可用的整题成功率",space_validation:"三维交互与触发",method_effect:"方法优势",generalization:"独立泛化"};
-        const blocks={budget:"基础模型剩余预算不足",billing:"请求计费待核",execution_failure:"连续执行失败，检查根因",direction_decision:"需要选择新的研究路线",credential:"服务凭据缺失",resource:"执行资源不可用"};
+        const blocks={budget:"基础模型剩余预算不足",billing:"请求计费待核",execution_failure:"连续执行失败，检查根因",direction_decision:"需要选择新的研究路线",credential:"服务凭据缺失",resource:"执行资源不可用",planner_failure:"Codex 规划连续失败，已达尝试上限"};
         row(section,"未达到的目标",r.unmet.map(x=>goals[x]).join("、") || "全部已验收");
         row(section,"任务",names[r.task] || words["rd_"+r.phase]);
+        const shortId=id=>id?.slice(0,12);
+        if(r.phase==="collection" || r.phase==="awaiting_result") row(section,"规划器","等待实验结果");
+        if(["budget","billing","resource","credential","planner_failure"].includes(r.blocker)) row(section,"资源阻塞",blocks[r.blocker]);
+        const call=r.last_call;
+        if(call){
+          const verdict={running:"调用中",succeeded:"成功",failed:"失败"};
+          row(section,"最近真实 Codex 规划",stamp(call.started)+" · "+verdict[call.outcome]+(call.ended?" · "+stamp(call.ended): ""));
+          if(call.parent) row(section,"规划依据任务",shortId(call.parent));
+          if(call.task) row(section,"该次规划选定的任务",names[call.kind]+" · "+shortId(call.task));
+        }
         if (r.hypothesis) row(section,"检验条件",r.reason==="matched_model"?"只更换基础模型后，同任务整题通过数增加":r.hypothesis==="contrast" && r.reason==="observed_stop"?"允许错误后继续执行能提高配对整题通过数":tests[r.hypothesis]);
         if (r.reason) row(section,"依据",why[r.reason]+(r.trigger===null?"":" · "+r.trigger+" 次"));
         if (r.latest) row(section,"最近产物",names[r.latest]+" · "+conclusions[r.outcome]);
