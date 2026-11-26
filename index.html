@@ -221,7 +221,7 @@
         const blocks={budget:"基础模型剩余预算不足",billing:"请求计费待核",execution_failure:"连续执行失败，检查根因",direction_decision:"需要选择新的研究路线",credential:"服务凭据缺失",resource:"执行资源不可用"};
         row(section,"未达到的目标",r.unmet.map(x=>goals[x]).join("、") || "全部已验收");
         row(section,"任务",names[r.task] || words["rd_"+r.phase]);
-        if (r.hypothesis) row(section,"检验条件",tests[r.hypothesis]);
+        if (r.hypothesis) row(section,"检验条件",r.hypothesis==="contrast" && r.reason==="observed_stop"?"允许错误后继续执行能提高配对整题通过数":tests[r.hypothesis]);
         if (r.reason) row(section,"依据",why[r.reason]+(r.trigger===null?"":" · "+r.trigger+" 次"));
         if (r.latest) row(section,"最近产物",names[r.latest]+" · "+conclusions[r.outcome]);
         row(section,"最近模型实验 · 整题成功",r.success+" / "+r.n);
