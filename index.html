@@ -119,6 +119,9 @@
       active: "进行中",
       pending: "待开始", queued: "已排队", started: "已启动", completed: "已完成",
       backoff: "退避等待", failed: "失败", official_control: "官方参考解对照",
+      cli_missing: "服务找不到 Codex", workspace_route: "工作区路由失败", authentication: "服务认证失败",
+      network: "审阅网络连接失败", cli_exit: "Codex 调用失败", deadline: "超过调用时限",
+      implementation: "后续任务执行异常", review_failure: "审阅输出或执行异常",
       encoding_control: "动作编码单步对照", replication: "独立发现任务复核", replication_analysis: "复核批次分析",
       pilot: "V2 发现集验证", analysis: "发现集诊断与搜索比较", hold: "审阅要求暂停",
       control_failed: "参考解对照失败", signal: "缺少模型整题成功样本",
@@ -238,6 +241,8 @@
         const f = d.followup, s = sec(root,"审阅与后续研究");
         row(s,"Codex 审阅",words[f.review_status] + " · " + f.review_attempts + " 次尝试");
         row(s,words[f.task],words[f.task_status] + " · " + f.task_attempts + " 次尝试");
+        if (f.block_reason) row(s,"阻塞原因",words[f.block_reason]);
+        if (f.paid_pause) row(s,"付费调用暂停",f.paid_pause==="budget"?"下一笔预留超出预算":"接口或计费待核查");
         if (f.retry_at) row(s,"最早重试",stamp(f.retry_at));
         row(s,"官方参考解 · 整题通过",f.reference_success + " / " + f.reference_n);
         row(s,"V2 独立发现集 · 已评分",f.pilot_n + " / " + f.pilot_planned);
