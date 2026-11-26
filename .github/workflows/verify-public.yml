@@ -1,0 +1,34 @@
+name: Check public research dashboard
+on: workflow_dispatch
+permissions: {}
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check anonymous desktop and mobile layouts
+        shell: bash
+        run: |
+          set -eu
+          npm install --no-audit --no-fund --ignore-scripts playwright-core@1.64.1
+          export AE_CHROME="$(command -v google-chrome)"
+          cat > check.cjs <<'JS'
+          const {chromium}=require('playwright-core');
+          const assert=require('node:assert/strict');
+          (async()=>{
+          const browser=await chromium.launch({executablePath:process.env.AE_CHROME,headless:true,args:['--disable-gpu','--no-sandbox']});
+          try{
+           for(const [width,height,mobile] of [[1280,900,false],[390,844,true]]){
+             const page=await browser.newPage({viewport:{width,height},isMobile:mobile,hasTouch:mobile});
+             page.on('pageerror',e=>console.error(e.message));
+             const r=await page.goto('https://mengyuan404.github.io/agent-efficiency-progress/',{waitUntil:'domcontentloaded',timeout:45000});
+             assert.equal(r.status(),200);
+             await page.getByRole('heading',{name:'轨迹采集'}).waitFor({timeout:30000});
+             assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+             console.log(JSON.stringify({width,mobile,source:await page.locator('#source').textContent(),alert:await page.locator('#alert').textContent(),state:(await page.locator('#content .row').nth(1).textContent())}));
+             await page.close();
+           }
+          }finally{await browser.close();}
+          })().catch(e=>{console.error(e.message);process.exitCode=1});
+          JS
+          node check.cjs
