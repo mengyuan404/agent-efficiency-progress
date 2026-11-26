@@ -99,6 +99,8 @@
   </main>
   <script>
     const words = {
+      rd_planning:"研究规划进行中",rd_awaiting_plan:"待研究规划",rd_queued:"任务已入队",rd_collection:"模型采集",rd_analysis:"分析研究证据",rd_development:"开发与验证",rd_backoff:"重试退避",rd_waiting:"等待解除阻塞",rd_accepted:"研究目标已验收",rd_execute:"执行已冻结任务",rd_plan:"根据证据重新规划",
+
       prepare: "核对执行状态",
       environment: "验证 AppWorld 环境",
       provider: "核实模型目录与单价",
@@ -202,13 +204,36 @@
           ? "数据过期"
           : (d.execution_status === "running" &&
                 old(d.experiment_heartbeat_at)) ||
-              (d.execution_status === "working" && [d.worker_heartbeat_at,d.followup?.review_heartbeat_at,d.followup?.development_heartbeat_at].every(old))
+              (d.execution_status === "working" && [d.worker_heartbeat_at,d.followup?.review_heartbeat_at,d.followup?.development_heartbeat_at,d.research?.planning_at,d.research?.task_at].every(old))
             ? "心跳过期"
             : words[d.execution_status],
       );
       row(overview, "当前动作", words[d.current_action]);
       row(overview, "下一项", words[d.next_action]);
       for (let b of d.blockers) row(overview, "阻塞", words[b]);
+      if (d.research) {
+        const r=d.research, section=sec(root,"目标驱动的研发");
+        const names={source:"核实官方普通 agent 与提示来源",control:"普通 agent 整题对照",contrast:"单因素配对对照",matrix:"三维空间配对采集",search:"同预算强基线重放",method:"改进候选方法与消融",synthesis:"评估路线与证据缺口",diagnosis:"故障与部分结果分析",validation:"新场景独立验证",validation_search:"冻结方法外部检验",redesign:"替代研究假设",interaction:"配对交互分析"};
+        const why={source_integrity:"参考解使用特权信息",low_success:"历史普通模型整题成功稀少",independent_control:"检验其他模型或场景是否复现",quality_signal:"质量出现区分且干预触发",space_trigger:"检验信息与执行干预的实际触发",candidate_uncertainty:"结构共享的优势尚不确定",transfer_uncertainty:"跨任务可重复性不足",resource_review:"核对阻塞与剩余证据",normal_quality_uncertain:"普通执行质量仍不确定",observed_unfence:"单段代码围栏",observed_output:"输出达到长度限制",observed_docs:"文档或参数调用错误",observed_auth:"应用鉴权错误",observed_completion:"提交与评分不符",observed_stop:"错误后继续执行",fresh_evidence:"需要未参与开发的独立场景",method_replication:"检验冻结方法的复现性",interaction_precision:"估计三维配对交互"};
+        const tests={source:"官方提示可依靠公开字段初始化",control:"固定发现任务中至少一题官方通过",contrast:"单一改动使配对整题通过数增加",matrix:"八个配置可评分且两个策略维度均触发",search:"同预算下优于强基线",method:"改进同时优于父方法和强基线",validation:"独立场景支持既有质量和成本结论",validation_search:"冻结策略在新场景维持优势",interaction:"配对交互跨任务一致",synthesis:"证据可区分竞争路线",diagnosis:"能从账本和断点定位阻塞"};
+        const conclusions={verified:"实现验收通过",invalid:"实现验证失败",pilot_supported:"本轮探索性结果支持假设",not_supported:"本轮假设未获支持",measured:"实验测量完成",analyzed:"分析已完成",accepted:"验收条件已核实"};
+        const goals={normal_control:"普通 agent 对照",usable_agent:"可用的整题成功率",space_validation:"三维交互与触发",method_effect:"方法优势",generalization:"独立泛化"};
+        const blocks={budget:"基础模型剩余预算不足",billing:"请求计费待核",execution_failure:"连续执行失败，检查根因",direction_decision:"需要选择新的研究路线",credential:"服务凭据缺失",resource:"执行资源不可用"};
+        row(section,"未达到的目标",r.unmet.map(x=>goals[x]).join("、") || "全部已验收");
+        row(section,"任务",names[r.task] || words["rd_"+r.phase]);
+        if (r.hypothesis) row(section,"检验条件",tests[r.hypothesis]);
+        if (r.reason) row(section,"依据",why[r.reason]+(r.trigger===null?"":" · "+r.trigger+" 次"));
+        if (r.latest) row(section,"最近产物",names[r.latest]+" · "+conclusions[r.outcome]);
+        row(section,"最近模型实验 · 整题成功",r.success+" / "+r.n);
+        row(section,"方法有效性",r.method_supported?"已获对照支持":"尚未获得足够支持");
+        row(section,"已评分新轨迹 / 已审查轮次",r.cells_done+" / "+r.rounds);
+        row(section,"Codex 规划调用尝试",r.codex_attempts+" · 与基础模型账本分列");
+        row(section,"本任务尝试 / 上限",r.attempts+" / "+r.limit);
+        if(r.retry_at) row(section,"最早重试",stamp(r.retry_at));
+        if(r.blocker) row(section,"阻塞",blocks[r.blocker]);
+        for(const [k,t,live] of [["规划",r.planning_at,r.planning_live],["执行",r.task_at,r.task_live]])
+          row(section,k+"心跳",(stale || (live && old(t))?"过期":live?"活动":"空闲")+" · "+stamp(t));
+      }
       let g = ui("div", null, root, "grid"),
         c = sec(g, "原实验 V1"),
         b = sec(g, "项目累计预算 · USD");
