@@ -1,25 +1,332 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agent-Efficiency · 研究进度</title><style>
-*{box-sizing:border-box}body{margin:0;background:#f3f6fa;color:#182a42;font:16px/1.6 system-ui,sans-serif}main{max-width:1040px;margin:auto;padding:38px 24px}header{border-top:5px solid #306c95;padding-top:20px}h1{margin:0;font-size:clamp(2rem,5vw,3rem);letter-spacing:-.04em}h2{font-size:1.15rem;color:#214f73;margin:0 0 12px}p{margin:.5em 0}section{background:white;border:1px solid #cfdbe4;border-radius:9px;padding:20px;margin:12px 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(265px,100%),1fr));gap:12px}.grid section{margin:0}.row{display:flex;justify-content:space-between;gap:16px;align-items:baseline;padding:5px 0;border-bottom:1px solid #eef1f4}.row span:last-child{text-align:right;font-variant-numeric:tabular-nums}#alert{color:#853d12}small,footer{color:#495d72}footer{overflow-wrap:anywhere;margin-top:16px}.stage{padding:8px 0;border-bottom:1px solid #eef1f4}.stage b{display:block}progress{width:100%;accent-color:#33789d}</style><main><header><h1>Agent-Efficiency</h1><p>在有限评测预算下，寻找兼顾任务成功率、费用和时延的智能体配置。</p></header><div id="alert" role="status"></div><div id="content"></div><footer id="source"></footer></main>
-<script>
-const words={prepare:'核对执行状态',environment:'验证 AppWorld 环境',provider:'核实模型目录与单价',key:'等待服务器配置 DeepInfra 凭据',smoke:'运行首个任务的 8 种配置',matrix:'配对采集与费用预测',compare:'比较四种搜索基线',review:'审阅阶段证据',budget:'评测预算不足',interrupted:'核查中断与预留费用',finished:'本次队列已完成',running:'实验运行中',working:'调度器工作中',blocked:'等待条件',stopped:'已停止',verified:'已验收',active:'进行中',pending:'待开始'};
-const milestones={history:'仓库历史已核验',budget:'累计预算保护已验证',resume:'断点恢复已验证',provider:'两款模型目录已核验',environment:'官方环境已验证',tests:'软件契约检查已通过',dashboard:'公网读回已验证',plan:'192 个采集单元已固定'};
-const titles=['可恢复运行与公网面板','官方环境与真实冒烟','搜索空间与代表性基线','原创方法与消融','泛化与论文材料'];
-const exits=['外网可读，停机过期、重启及累计费用可核查','8 个配置可追踪至官方评分或预算受限的部分证据','真实配对矩阵、交互估计和同预算比较','方法差异及模块贡献有可复现证据','跨场景验证、复现材料及结论边界'];
-const ui=(tag,text,parent,cls)=>{let e=document.createElement(tag);if(text!=null)e.textContent=text;if(cls)e.className=cls;parent.append(e);return e};
-const stamp=x=>x?new Date(x).toLocaleString('zh-CN',{hour12:false}):'尚无记录';
-let last,problem=false;
-function draw(){let root=document.querySelector('#content'),warn=document.querySelector('#alert');root.replaceChildren();
-if(!last){warn.textContent=problem?'读取进度失败，等待重试。':'正在读取研究进度…';return}
-const d=last,old=x=>!x||Date.now()-Date.parse(x)>300000,stale=old(d.generated_at);
-warn.textContent=[problem?'读取失败，保留上次数据。':'',stale?'数据超过 5 分钟未更新，当前活动未知。':''].join(' ');
-const sec=(p,t)=>{let s=ui('section',null,p);ui('h2',t,s);return s};const row=(s,k,v)=>{let r=ui('div',null,s,'row');ui('span',k,r);ui('span',v??'暂无数据',r)};
-let overview=sec(root,'当前研究状态');row(overview,'阶段',d.current_stage+' · '+titles[Number(d.current_stage[1])]);row(overview,'执行状态',stale?'数据过期':(d.execution_status==='running'&&old(d.experiment_heartbeat_at)||d.execution_status==='working'&&old(d.worker_heartbeat_at))?'心跳过期':words[d.execution_status]);row(overview,'当前动作',words[d.current_action]);row(overview,'下一项',words[d.next_action]);for(let b of d.blockers)row(overview,'阻塞',words[b]);
-let g=ui('div',null,root,'grid'),c=sec(g,'轨迹采集'),b=sec(g,'项目累计预算 · USD');let count=d.trajectory_counts;row(c,'完整轨迹',count.completed+' / '+count.planned);let p=ui('progress',null,c);p.max=count.planned;p.value=count.completed;p.setAttribute('aria-label','完整轨迹');row(c,'已预留或结算请求',count.calls);row(c,'实验作业',stale?'未知':d.experiment_active&&!old(d.experiment_heartbeat_at)?'1':'0');if(d.current_unit)row(c,'单元标识',d.current_unit);
-for(let [k,t] of Object.entries({authorized_usd:'授权上限',confirmed_or_estimated_usd:'按用量估计',unknown_reserved_usd:'未知计费预留',available_usd:'可用余额'}))row(b,t,d.budget[k].toFixed(6));
-let m=sec(root,'发现集效果与干预');for(let [k,t] of Object.entries({n:'完整样本',success_rate:'官方成功率',latency_median_s:'任务时延中位数（秒）',input_tokens:'输入 Token',output_tokens:'输出 Token',masked_observation_exposures:'遮盖观测呈现次数',errors:'动作与工具错误',repair_steps:'出错后继续执行次数',recovery_calls:'回查原文次数'}))row(m,t,k==='success_rate'&&d.metrics[k]!=null?(d.metrics[k]*100).toFixed(1)+'%':d.metrics[k]);
-let phases=sec(root,'阶段与验收条件');titles.forEach((t,i)=>{let e=ui('div',null,phases,'stage');ui('b','P'+i+' · '+t+' · '+words[d.stages[i]],e);ui('small',exits[i],e)});
-let methods=sec(root,'Pareto 前沿与基线');ui('p','CC-Gittins、按费用归一化的 qNEHVI 与 qLogNEHVI、随机搜索。配置按同一预热和揭示预算比较。',methods);if(d.pareto?.length){for(const x of d.pareto)row(methods,'配置 '+x.arm+' · n='+x.n,(x.quality*100).toFixed(1)+'% · '+x.seconds.toFixed(1)+' 秒 · $'+x.usd.toFixed(6))}else ui('p','发现集配对矩阵尚未收齐，暂无实测前沿。',methods);
-if(d.baseline?.length){for(const x of d.baseline)row(methods,x.method+' · '+(100*x.fraction)+'% 预算','HV regret '+x.regret.toFixed(3)+' · 召回 '+x.recall.toFixed(2)+' · '+x.seeds+' 个种子')}else ui('p','暂无经验证的基线排名。',methods);
-let proof=sec(root,'证据与心跳');for(let x of d.recent_events)ui('div',milestones[x],proof);for(let [t,at,live] of [['调度器',d.worker_heartbeat_at,d.worker_active],['实验进程',d.experiment_heartbeat_at,d.experiment_active]])row(proof,t,(at&&old(at)?'心跳过期':live?'活动':at?'已停止':'尚未运行')+' · '+stamp(at));document.querySelector('#source').textContent='来源：服务器账本与官方轨迹索引 · '+stamp(d.generated_at)+' · Git '+d.code_revision}
-async function refresh(){try{let r=await fetch('https://api.github.com/repos/mengyuan404/agent-efficiency-progress/releases/tags/progress',{cache:'no-store',signal:AbortSignal.timeout(15000)});if(!r.ok)throw Error();last=JSON.parse((await r.json()).body);problem=false}catch{problem=true}draw()}draw();refresh();setInterval(refresh,60000);setInterval(draw,10000);
-</script></html>
+<!doctype html>
+<html lang="zh-CN">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Agent-Efficiency · 研究进度</title
+  ><style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      background: #f3f6fa;
+      color: #182a42;
+      font:
+        16px/1.6 system-ui,
+        sans-serif;
+    }
+    main {
+      max-width: 1040px;
+      margin: auto;
+      padding: 38px 24px;
+    }
+    header {
+      border-top: 5px solid #306c95;
+      padding-top: 20px;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 3rem);
+      letter-spacing: -0.04em;
+    }
+    h2 {
+      font-size: 1.15rem;
+      color: #214f73;
+      margin: 0 0 12px;
+    }
+    p {
+      margin: 0.5em 0;
+    }
+    section {
+      background: white;
+      border: 1px solid #cfdbe4;
+      border-radius: 9px;
+      padding: 20px;
+      margin: 12px 0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(265px, 100%), 1fr));
+      gap: 12px;
+    }
+    .grid section {
+      margin: 0;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: baseline;
+      padding: 5px 0;
+      border-bottom: 1px solid #eef1f4;
+    }
+    .row span:last-child {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    #alert {
+      color: #853d12;
+    }
+    small,
+    footer {
+      color: #495d72;
+    }
+    footer {
+      overflow-wrap: anywhere;
+      margin-top: 16px;
+    }
+    .stage {
+      padding: 8px 0;
+      border-bottom: 1px solid #eef1f4;
+    }
+    .stage b {
+      display: block;
+    }
+    progress {
+      width: 100%;
+      accent-color: #33789d;
+    }
+  </style>
+  <main>
+    <header>
+      <h1>Agent-Efficiency</h1>
+      <p>在有限评测预算下，寻找兼顾任务成功率、费用和时延的智能体配置。</p>
+    </header>
+    <div id="alert" role="status"></div>
+    <div id="content"></div>
+    <footer id="source"></footer>
+  </main>
+  <script>
+    const words = {
+      prepare: "核对执行状态",
+      environment: "验证 AppWorld 环境",
+      provider: "核实模型目录与单价",
+      key: "等待服务器配置 DeepInfra 凭据",
+      smoke: "运行首个任务的 8 种配置",
+      matrix: "配对采集与费用预测",
+      compare: "比较四种搜索基线",
+      review: "审阅阶段证据",
+      budget: "评测预算不足",
+      interrupted: "核查中断与预留费用",
+      finished: "本次队列已完成",
+      running: "实验运行中",
+      working: "调度器工作中",
+      blocked: "等待条件",
+      stopped: "已停止",
+      device_check: "待真机复核",
+      verified: "已验收",
+      active: "进行中",
+      pending: "待开始",
+    };
+    const milestones = {
+      history: "仓库历史已核验",
+      budget: "累计预算保护已验证",
+      resume: "断点恢复已验证",
+      provider: "两款模型目录已核验",
+      environment: "官方环境已验证",
+      tests: "软件契约检查已通过",
+      dashboard: "公网读回已验证",
+      plan: "192 个采集单元已固定",
+    };
+    const titles = [
+      "可恢复运行与公网面板",
+      "官方环境与真实冒烟",
+      "搜索空间与代表性基线",
+      "原创方法与消融",
+      "泛化与论文材料",
+    ];
+    const exits = [
+      "外网可读，停机过期、重启及累计费用可核查",
+      "8 个配置可追踪至官方评分或预算受限的部分证据",
+      "真实配对矩阵、交互估计和同预算比较",
+      "方法差异及模块贡献有可复现证据",
+      "跨场景验证、复现材料及结论边界",
+    ];
+    const ui = (tag, text, parent, cls) => {
+      let e = document.createElement(tag);
+      if (text != null) e.textContent = text;
+      if (cls) e.className = cls;
+      parent.append(e);
+      return e;
+    };
+    const stamp = (x) =>
+      x ? new Date(x).toLocaleString("zh-CN", { hour12: false }) : "尚无记录";
+    let last,
+      problem = false;
+    function draw() {
+      let root = document.querySelector("#content"),
+        warn = document.querySelector("#alert");
+      root.replaceChildren();
+      if (!last) {
+        warn.textContent = problem
+          ? "读取进度失败，等待重试。"
+          : "正在读取研究进度…";
+        return;
+      }
+      const d = last,
+        old = (x) => !x || Date.now() - Date.parse(x) > 300000,
+        stale = old(d.generated_at);
+      warn.textContent = [
+        problem ? "读取失败，保留上次数据。" : "",
+        stale ? "数据超过 5 分钟未更新，当前活动未知。" : "",
+      ].join(" ");
+      const sec = (p, t) => {
+        let s = ui("section", null, p);
+        ui("h2", t, s);
+        return s;
+      };
+      const row = (s, k, v) => {
+        let r = ui("div", null, s, "row");
+        ui("span", k, r);
+        ui("span", v ?? "暂无数据", r);
+      };
+      let overview = sec(root, "当前研究状态");
+      row(
+        overview,
+        "阶段",
+        d.current_stage + " · " + titles[Number(d.current_stage[1])],
+      );
+      row(
+        overview,
+        "执行状态",
+        stale
+          ? "数据过期"
+          : (d.execution_status === "running" &&
+                old(d.experiment_heartbeat_at)) ||
+              (d.execution_status === "working" && old(d.worker_heartbeat_at))
+            ? "心跳过期"
+            : words[d.execution_status],
+      );
+      row(overview, "当前动作", words[d.current_action]);
+      row(overview, "下一项", words[d.next_action]);
+      for (let b of d.blockers) row(overview, "阻塞", words[b]);
+      let g = ui("div", null, root, "grid"),
+        c = sec(g, "轨迹采集"),
+        b = sec(g, "项目累计预算 · USD");
+      let count = d.trajectory_counts;
+      row(c, "完整轨迹", count.completed + " / " + count.planned);
+      let p = ui("progress", null, c);
+      p.max = count.planned;
+      p.value = count.completed;
+      p.setAttribute("aria-label", "完整轨迹");
+      row(c, "已预留或结算请求", count.calls);
+      row(
+        c,
+        "实验作业",
+        stale
+          ? "未知"
+          : d.experiment_active && !old(d.experiment_heartbeat_at)
+            ? "1"
+            : "0",
+      );
+      if (d.current_unit) row(c, "单元标识", d.current_unit);
+      for (let [k, t] of Object.entries({
+        authorized_usd: "授权上限",
+        confirmed_or_estimated_usd: "按用量估计",
+        unknown_reserved_usd: "未知计费预留",
+        available_usd: "可用余额",
+      }))
+        row(b, t, d.budget[k].toFixed(6));
+      let m = sec(root, "发现集效果与干预");
+      for (let [k, t] of Object.entries({
+        n: "完整样本",
+        success_rate: "官方成功率",
+        latency_median_s: "任务时延中位数（秒）",
+        input_tokens: "输入 Token",
+        output_tokens: "输出 Token",
+        masked_observation_exposures: "遮盖观测呈现次数",
+        errors: "动作与工具错误",
+        repair_steps: "出错后继续执行次数",
+        recovery_calls: "回查原文次数",
+      }))
+        row(
+          m,
+          t,
+          k === "success_rate" && d.metrics[k] != null
+            ? (d.metrics[k] * 100).toFixed(1) + "%"
+            : d.metrics[k],
+        );
+      let phases = sec(root, "阶段与验收条件");
+      titles.forEach((t, i) => {
+        let e = ui("div", null, phases, "stage");
+        ui("b", "P" + i + " · " + t + " · " + words[d.stages[i]], e);
+        ui("small", exits[i], e);
+      });
+      let methods = sec(root, "Pareto 前沿与基线");
+      ui(
+        "p",
+        "CC-Gittins、按费用归一化的 qNEHVI 与 qLogNEHVI、随机搜索。配置按同一预热和揭示预算比较。",
+        methods,
+      );
+      if (d.pareto?.length) {
+        for (const x of d.pareto)
+          row(
+            methods,
+            "配置 " + x.arm + " · n=" + x.n,
+            (x.quality * 100).toFixed(1) +
+              "% · " +
+              x.seconds.toFixed(1) +
+              " 秒 · $" +
+              x.usd.toFixed(6),
+          );
+      } else ui("p", "发现集配对矩阵尚未收齐，暂无实测前沿。", methods);
+      if (d.baseline?.length) {
+        for (const x of d.baseline)
+          row(
+            methods,
+            x.method + " · " + 100 * x.fraction + "% 预算",
+            "HV regret " +
+              x.regret.toFixed(3) +
+              " · 召回 " +
+              x.recall.toFixed(2) +
+              " · " +
+              x.seeds +
+              " 个种子",
+          );
+      } else ui("p", "暂无经验证的基线排名。", methods);
+      let proof = sec(root, "证据与心跳");
+      for (let x of d.recent_events) ui("div", milestones[x], proof);
+      for (let [t, at, live] of [
+        ["调度器", d.worker_heartbeat_at, d.worker_active],
+        ["实验进程", d.experiment_heartbeat_at, d.experiment_active],
+      ])
+        row(
+          proof,
+          t,
+          (at && old(at)
+            ? "心跳过期"
+            : live
+              ? "活动"
+              : at
+                ? "已停止"
+                : "尚未运行") +
+            " · " +
+            stamp(at),
+        );
+      document.querySelector("#source").textContent =
+        "来源：服务器账本与官方轨迹索引 · " +
+        stamp(d.generated_at) +
+        " · Git " +
+        d.code_revision;
+    }
+    async function refresh() {
+      try {
+        let r = await fetch(
+          "https://api.github.com/repos/mengyuan404/agent-efficiency-progress/releases/tags/progress",
+          { cache: "no-store", signal: AbortSignal.timeout(15000) },
+        );
+        if (!r.ok) throw Error();
+        last = JSON.parse((await r.json()).body);
+        problem = false;
+      } catch {
+        problem = true;
+      }
+      draw();
+    }
+    draw();
+    refresh();
+    setInterval(refresh, 60000);
+    setInterval(draw, 10000);
+  </script>
+</html>
