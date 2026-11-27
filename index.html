@@ -221,6 +221,9 @@
         const blocks={budget:"基础模型剩余预算不足",billing:"请求计费待核",execution_failure:"连续执行失败，检查根因",direction_decision:"需要选择新的研究路线",credential:"服务凭据缺失",resource:"执行资源不可用",planner_failure:"Codex 规划连续失败，已达尝试上限"};
         row(section,"未达到的目标",r.unmet.map(x=>goals[x]).join("、") || "全部已验收");
         row(section,"任务",names[r.task] || words["rd_"+r.phase]);
+        if(r.closed_rounds) row(section,"已用完重试额度的采集轮次",String(r.closed_rounds)+" · 费用预留保留");
+        if(r.independent_route) row(section,"付费恢复","独立模型对照；原失败请求已封存");
+        if(r.blocker==="billing" && r.task_live && r.phase==="analysis") row(section,"付费暂停期间","正在核对账本或分析已有发现集轨迹");
         const shortId=id=>id?.slice(0,12);
         if(r.phase==="collection" || r.phase==="awaiting_result") row(section,"规划器","等待实验结果");
         if(["budget","billing","resource","credential","planner_failure"].includes(r.blocker)) row(section,"资源阻塞",blocks[r.blocker]);
